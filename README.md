@@ -1,4 +1,4 @@
-<img src="images/deadpool.png" style="zoom:30%;" />
+<img src="images/deadpool.png" style="zoom:30%;transform: scale(0.3);" />
 
 deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空间测绘平台取socks5**代理，或**本地导入socks5**代理，轮询使用代理进行流量转发。
 
@@ -42,7 +42,7 @@ deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空�
 
 **Proxifier配置**
 
-<img src="images/Proxifier.png" style="zoom:25%;" />
+<img src="images/Proxifier.png" style="zoom:25%;transform: scale(0.25);" />
 
 **SwitchyOmega配置**
 
