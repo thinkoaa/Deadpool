@@ -1,4 +1,4 @@
-<img src="images/deadpool.png" style="zoom:30%;transform: scale(0.3);" />
+<img src="images/deadpool.png" style="zoom:30%;transform: scale(0.3);" width="35%" height="35%"/>
 
 deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空间测绘平台取socks5**代理，或**本地导入socks5**代理，轮询使用代理进行流量转发。
 
@@ -38,15 +38,15 @@ deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空�
 
 **burp中配置**
 
-<img src="images/burp.png" style="zoom: 28%;" />
+<img src="images/burp.png" style="zoom: 28%;" width="65%" height="65%"/>
 
 **Proxifier配置**
 
-<img src="images/Proxifier.png" style="zoom:25%;transform: scale(0.25);" />
+<img src="images/Proxifier.png" style="zoom:25%;transform: scale(0.25);" width="35%" height="35%" />
 
 **SwitchyOmega配置**
 
-<img src="images/SwitchyOmega.png" style="zoom:33%;" />
+<img src="images/SwitchyOmega.png" style="zoom:33%;" width="65%" height="65%" />
 
 其他工具使用时同理，指定socks5协议，IP、端口即可
 
