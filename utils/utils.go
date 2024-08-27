@@ -1,10 +1,12 @@
-package main
+package utils
 
 import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +18,7 @@ import (
 // 防止goroutine 异步处理问题
 func addSocks(socks5 string) {
 	mu.Lock()
-	socksList = append(socksList, socks5)
+	SocksList = append(SocksList, socks5)
 	mu.Unlock()
 }
 func fetchContent(baseURL string, method string, timeout int, urlParams map[string]string, headers map[string]string, jsonBody string) (string, error) {
@@ -67,19 +69,20 @@ func fetchContent(baseURL string, method string, timeout int, urlParams map[stri
 	return string(body), nil
 }
 
-func removeDuplicates(socksList []string) []string {
+func RemoveDuplicates() {
 	seen := make(map[string]struct{})
 	var result []string
-	for _, sock := range socksList {
+	for _, sock := range SocksList {
 		if _, ok := seen[sock]; !ok {
 			result = append(result, sock)
 			seen[sock] = struct{}{}
 		}
 	}
 
-	return result
+	SocksList = result
 }
-func checkSocks(config map[string]interface{}) {
+
+func CheckSocks(config map[string]interface{}) {
 	maxConcurrentReq, _ := strconv.Atoi(config["maxConcurrentReq"].(string))
 	timeout, _ = strconv.Atoi(config["timeout"].(string))
 	semaphore = make(chan struct{}, maxConcurrentReq)
@@ -93,12 +96,12 @@ func checkSocks(config map[string]interface{}) {
 		isOpenGeolocateSwitch = true
 		reqUrl = checkGeolocateConfig["checkURL"].(string)
 	}
-	for _, proxyAddr := range socksList {
+	for _, proxyAddr := range SocksList {
 
-		wg.Add(1)
+		Wg.Add(1)
 		semaphore <- struct{}{}
 		go func(proxyAddr string) {
-			defer wg.Done()
+			defer Wg.Done()
 			defer func() {
 				<-semaphore
 
@@ -138,8 +141,8 @@ func checkSocks(config map[string]interface{}) {
 			if !isOpenGeolocateSwitch {
 				if strings.Contains(stringBody, checkRspKeywords) {
 					mu.Lock() // 锁
-					effectiveList = append(effectiveList, proxyAddr)
-					message := "\r已发现第 " + strconv.Itoa(len(effectiveList)) + " 个符合条件的代理:" + proxyAddr + "        "
+					EffectiveList = append(EffectiveList, proxyAddr)
+					message := "\r已发现第 " + strconv.Itoa(len(EffectiveList)) + " 个符合条件的代理:" + proxyAddr + "        "
 					messageBytes := []byte(message)
 					os.Stdout.Write(messageBytes)
 					mu.Unlock() // 解锁
@@ -160,8 +163,8 @@ func checkSocks(config map[string]interface{}) {
 					}
 				}
 				mu.Lock() // 锁
-				effectiveList = append(effectiveList, proxyAddr)
-				message := "\r已发现第 " + strconv.Itoa(len(effectiveList)) + " 个符合条件代理:" + proxyAddr + "        "
+				EffectiveList = append(EffectiveList, proxyAddr)
+				message := "\r已发现第 " + strconv.Itoa(len(EffectiveList)) + " 个符合条件代理:" + proxyAddr + "        "
 				messageBytes := []byte(message)
 				os.Stdout.Write(messageBytes)
 				mu.Unlock() // 解锁
@@ -169,21 +172,71 @@ func checkSocks(config map[string]interface{}) {
 			}
 		}(proxyAddr)
 	}
+	Wg.Wait()
 }
 
-func WriteLinesToFile(fileName string, lines []string) error {
-	file, err := os.Create(fileName)
+func WriteLinesToFile() error {
+	file, err := os.Create(LastDataFile)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
 	writer := bufio.NewWriter(file)
-	for _, line := range lines {
+	for _, line := range EffectiveList {
 		if _, err := writer.WriteString(line + "\n"); err != nil {
 			return err
 		}
 	}
 
 	return writer.Flush()
+}
+
+func TransmitReqFromClient(reqFromClient net.Conn) {
+	defer reqFromClient.Close()
+	tmpProxy := getNextProxy()
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05") + "    " + tmpProxy)
+	if len(EffectiveList) == 0 {
+		fmt.Println("***已无可用代理，程序退出***")
+		os.Exit(1)
+	}
+	if len(EffectiveList) <= 1 {
+		fmt.Printf("***可用代理已仅剩%v个,%v，***\n", len(EffectiveList), EffectiveList)
+	}
+
+	conn, err := net.DialTimeout("tcp", tmpProxy, time.Duration(timeout)*time.Second)
+	if err != nil {
+		delInvalidProxy(tmpProxy) //从临时列表中删除该代理
+		TransmitReqFromClient(reqFromClient)
+		return
+	}
+	defer conn.Close()
+	go io.Copy(conn, reqFromClient)
+	io.Copy(reqFromClient, conn)
+}
+
+func getNextProxy() string {
+	mu.Lock()
+	defer mu.Unlock()
+	proxy := EffectiveList[proxyIndex]
+	proxyIndex = (proxyIndex + 1) % len(EffectiveList) // 循环访问
+	return proxy
+}
+
+// 使用过程中删除无效的代理
+func delInvalidProxy(proxy string) {
+	mu.Lock()
+	for i, p := range EffectiveList {
+		if p == proxy {
+			EffectiveList = append(EffectiveList[:i], EffectiveList[i+1:]...)
+			if proxyIndex != 0 {
+				proxyIndex = proxyIndex - 1
+			}
+			break
+		}
+	}
+	if proxyIndex >= len(EffectiveList) {
+		proxyIndex = 0
+	}
+	mu.Unlock()
 }

@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"bufio"
@@ -12,8 +12,8 @@ import (
 )
 
 // 从quake获取，结果为IP:PORT
-func getSocksFromQuake(config map[string]interface{}) {
-	defer wg.Done()
+func GetSocksFromQuake(config map[string]interface{}) {
+	defer Wg.Done()
 	if config["switch"] != "open" {
 		fmt.Println("---未开启quake---")
 		return
@@ -47,8 +47,8 @@ func getSocksFromQuake(config map[string]interface{}) {
 }
 
 // 从FOFA获取,结果为IP:PORT
-func getSocksFromFofa(config map[string]interface{}) {
-	defer wg.Done()
+func GetSocksFromFofa(config map[string]interface{}) {
+	defer Wg.Done()
 	if config["switch"] != "open" {
 		fmt.Println("---未开启fofa---")
 		return
@@ -61,7 +61,7 @@ func getSocksFromFofa(config map[string]interface{}) {
 		"fields":  "ip,port",
 		"qbase64": base64.StdEncoding.EncodeToString([]byte(config["queryString"].(string))),
 		"size":    config["resultSize"].(string)}
-	content, err := fetchContent(config["apiUrl"].(string), "GET", 15, params, nil, "")
+	content, err := fetchContent(config["apiUrl"].(string), "GET", 1500, params, nil, "")
 	if err != nil {
 		fmt.Println("访问fofa异常", err)
 		return
@@ -82,8 +82,8 @@ func getSocksFromFofa(config map[string]interface{}) {
 }
 
 // 从鹰图获取，结果为IP:PORT
-func getSocksFromHunter(config map[string]interface{}) {
-	defer wg.Done()
+func GetSocksFromHunter(config map[string]interface{}) {
+	defer Wg.Done()
 	if config["switch"] != "open" {
 		fmt.Println("---未开启hunter---")
 		return
@@ -98,7 +98,7 @@ func getSocksFromHunter(config map[string]interface{}) {
 			"page":      strconv.Itoa(i),
 			"page_size": "100"}
 		fmt.Printf("HUNTER：每页100条,正在查询第%v页\n", i)
-		content, err := fetchContent(config["apiUrl"].(string), "GET", 15, params, nil, "")
+		content, err := fetchContent(config["apiUrl"].(string), "GET", 30, params, nil, "")
 		if err != nil {
 			fmt.Println("访问hunter异常", err)
 			return
@@ -139,7 +139,7 @@ func GetSocksFromFile(socksFileName string) {
 
 		for scanner.Scan() {
 			line := scanner.Text()
-			socksList = append(socksList, strings.TrimSpace(line))
+			SocksList = append(SocksList, strings.TrimSpace(line))
 		}
 		// 检查扫描过程中是否发生了错误
 		if err := scanner.Err(); err != nil {

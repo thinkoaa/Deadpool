@@ -1,4 +1,4 @@
-module sample-app
+module Deadpool
 
 go 1.20
 
