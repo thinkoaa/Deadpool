@@ -96,11 +96,15 @@ func CheckSocks(config map[string]interface{}) {
 		isOpenGeolocateSwitch = true
 		reqUrl = checkGeolocateConfig["checkURL"].(string)
 	}
-	for _, proxyAddr := range SocksList {
+	fmt.Printf("并发:[ %v ],超时标准:[ %vs ]\n", maxConcurrentReq, timeout)
+	for index, proxyAddr := range SocksList {
 
 		Wg.Add(1)
 		semaphore <- struct{}{}
 		go func(proxyAddr string) {
+			mu.Lock()
+			fmt.Printf("\r正检测第 [ %v/%v ] 个代理,异步处理中...                    ", index+1, len(SocksList))
+			mu.Unlock()
 			defer Wg.Done()
 			defer func() {
 				<-semaphore
@@ -139,13 +143,8 @@ func CheckSocks(config map[string]interface{}) {
 			}
 			stringBody := string(body)
 			if !isOpenGeolocateSwitch {
-				if strings.Contains(stringBody, checkRspKeywords) {
-					mu.Lock() // 锁
-					EffectiveList = append(EffectiveList, proxyAddr)
-					message := "\r已发现第 " + strconv.Itoa(len(EffectiveList)) + " 个符合条件的代理:" + proxyAddr + "        "
-					messageBytes := []byte(message)
-					os.Stdout.Write(messageBytes)
-					mu.Unlock() // 解锁
+				if !strings.Contains(stringBody, checkRspKeywords) {
+					return
 				}
 			} else {
 				//直接循环要排除的关键字，任一命中就返回
@@ -162,14 +161,11 @@ func CheckSocks(config map[string]interface{}) {
 						return
 					}
 				}
-				mu.Lock() // 锁
-				EffectiveList = append(EffectiveList, proxyAddr)
-				message := "\r已发现第 " + strconv.Itoa(len(EffectiveList)) + " 个符合条件代理:" + proxyAddr + "        "
-				messageBytes := []byte(message)
-				os.Stdout.Write(messageBytes)
-				mu.Unlock() // 解锁
 
 			}
+			mu.Lock() // 锁
+			EffectiveList = append(EffectiveList, proxyAddr)
+			mu.Unlock() // 解锁
 		}(proxyAddr)
 	}
 	Wg.Wait()

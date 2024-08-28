@@ -28,7 +28,7 @@ func main() {
 		os.Exit(1)
 	}
 	//从本地文件中取socks代理
-
+	fmt.Println("***直接使用fmt打印当前使用的代理,若高并发时,命令行打印可能会阻塞，不对打印做特殊处理，可忽略，不会影响实际的请求转发***\n")
 	utils.GetSocksFromFile(utils.LastDataFile)
 	//从fofa获取
 	utils.Wg.Add(1)
@@ -58,7 +58,7 @@ func main() {
 	if sec == 0 {
 		sec = 1
 	}
-	fmt.Printf("\n根据配置规则检测完成,用时 %vs ,共发现%v个可用\n", sec, len(utils.EffectiveList))
+	fmt.Printf("\n根据配置规则检测完成,用时 [ %vs ] ,共发现 [ %v ] 个可用\n", sec, len(utils.EffectiveList))
 	if len(utils.EffectiveList) == 0 {
 		fmt.Println("根据规则检测后，未发现满足要求的代理,请调整配置,程序退出")
 		os.Exit(1)
@@ -66,7 +66,7 @@ func main() {
 
 	utils.WriteLinesToFile() //存活代理写入硬盘，以备下次启动直接读取
 
-	fmt.Printf("======其他工具通过配置 socks5://%v 使用收集的代理，此处若提示0.0.0.0:xxxx，使用时需指定为具体地址======\n***直接使用fmt打印当前使用的代理,若高并发时,命令行打印可能会阻塞，不对打印做特殊处理，可忽略，不会影响实际的请求转发***\n", listener)
+	fmt.Printf("======其他工具通过配置 socks5://%v 使用收集的代理，此处若提示0.0.0.0:xxxx，使用时需指定为具体地址======\n", listener)
 	for { //持续监听请求
 		reqFromClient, err := socketServer.Accept()
 		if err != nil {
