@@ -116,17 +116,17 @@ resultSize='300' #最小为100,按100条/每页翻页，最大值需小于从官
 
 由于 fork 仓库无法无法修改仓库的可见性，也就是无法将仓库设置成私有形式。所以需要进行import.
 
-> 注意：开发不易,如果你觉得该项目对您有帮助, 麻烦点个Star
+> **开发不易,如果觉得该项目对您有帮助, 麻烦点个Starb吧**
 
 ![alt text](./images/import1.png)
 
 ![alt text](./images/import2.png)
 
-**记得勾选 Private。**
+**记得勾选 Private!!!**
 
 2. 设置 workflows 脚本
 
-将 import 的仓库clone到本地, 配置 action workflows 脚本到 `.github/workflows`目录：
+将 import 的仓库clone到本地, 配置 action workflows 脚本到 `.github/workflows/schedule.yml`目录：
 
 ```yaml
 name: schedule
@@ -171,9 +171,9 @@ jobs:
           fi
 ```
 
-    1. 示例脚本的运行频率为 `每五天运行一次`, 你可以根据需要，自行调整 `cron: "0 0 */5 * *"`
+-  示例脚本的运行频率为 `每五天运行一次`, 可以根据需要，自行调整 `cron: "0 0 */5 * *"`
 
-    2. 根据自己情况替换 `user.name 'xxx'` 和 `user.email 'xxxx'` 的 xxx
+- 根据自己情况替换 `user.name 'xxx'` 和 `user.email 'xxxx'` 的 `xxx`
 
 
 3. 设置启动脚本 `entrypoint.sh`
@@ -191,7 +191,7 @@ fi
 exit 0
 ```
 
-其中需要注意：由于项目是以阻塞形式的, 所以这里使用了 `timeout` 进行超时退出. 你可以根据跑的数据量设置 `entrypoint.sh` 脚本中的 `150` 为需要的值, 当然越大越好，否则如果地址还未验证完，程序退出的话做不会进行 `lastData.txt` 的写入操作.
+- 其中需要注意：由于项目是以阻塞形式的, 所以这里使用了 `timeout` 进行超时退出. 你可以根据跑的数据量设置 `entrypoint.sh` 脚本中的 `150` 为需要的值, 当然越大越好，否则如果地址还未验证完，程序退出的话做不会进行 `lastData.txt` 的写入操作.
 
 4. 配置 Action 的写入权限.
 
@@ -207,4 +207,4 @@ exit 0
 
 完整目录结构：
 
-![alt text](image.png)
+![alt text](./images/struct.png)
