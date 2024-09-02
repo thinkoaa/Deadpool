@@ -108,3 +108,103 @@ queryString = 'protocol=="socks5"&&protocol.banner="No authentication"&&ip.count
 resultSize='300' #最小为100,按100条/每页翻页，最大值需小于从官网web界面看到的结果数量，值需为100的整倍数，如200、300、1000、2000等
 ```
 
+### 0x05 GitHub Action 自动化搜集代理工具
+
+针对于个人使用场景，如果需要该脚本在GitHub自动获取并更新 lastData.txt, 可以按照一下流程进行设置：
+
+1. import repository
+
+由于 fork 仓库无法无法修改仓库的可见性，也就是无法将仓库设置成私有形式。所以需要进行import.
+
+> 注意：开发不易,如果你觉得该项目对您有帮助, 麻烦点个Star
+
+![alt text](./images/import1.png)
+
+![alt text](./images/import2.png)
+
+**记得勾选 Private。**
+
+2. 设置 workflows 脚本
+
+将 import 的仓库clone到本地, 配置 action workflows 脚本到 `.github/workflows`目录：
+
+```yaml
+name: schedule
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 */5 * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: "Set up Go"
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.x
+          check-latest: true
+          cache: true
+      
+      - name: Run search
+        run: |
+          bash entrypoint.sh
+
+        
+      - name: Commit and push if it changed
+        run: |
+          git config --global user.name 'xxx'
+          git config --global user.email 'xxxx'
+          if git diff --quiet -- lastData.txt; then
+           echo "lastData.txt has not been modified."
+          else
+           git add lastData.txt
+           git commit -m "update lastData.txt"
+           git push
+          fi
+```
+
+    1. 示例脚本的运行频率为 `每五天运行一次`, 你可以根据需要，自行调整 `cron: "0 0 */5 * *"`
+
+    2. 根据自己情况替换 `user.name 'xxx'` 和 `user.email 'xxxx'` 的 xxx
+
+
+3. 设置启动脚本 `entrypoint.sh`
+
+```sh
+#!/bin/bash
+go build -o deadpool main.go
+timeout --preserve-status 150 ./deadpool
+status=$?
+if [ $status -eq 124 ]; then
+    echo "The command timed out."
+else
+    echo "The command finished successfully."
+fi
+exit 0
+```
+
+其中需要注意：由于项目是以阻塞形式的, 所以这里使用了 `timeout` 进行超时退出. 你可以根据跑的数据量设置 `entrypoint.sh` 脚本中的 `150` 为需要的值, 当然越大越好，否则如果地址还未验证完，程序退出的话做不会进行 `lastData.txt` 的写入操作.
+
+4. 配置 Action 的写入权限.
+
+![alt text](./images/right1.png)
+
+![alt text](./images/right2.png)
+
+5. 修改 `config.tom` 配置文件
+
+根据自己情况替换各种 key 就行了. 
+
+**注意：一定记得讲仓库设置为私有, 否则 key 会泄漏！！！**
+
+完整目录结构：
+
+![alt text](image.png)
