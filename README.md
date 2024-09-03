@@ -1,6 +1,7 @@
 <img src="images/deadpool.png" style="zoom:30%;transform: scale(0.3);" width="35%" height="35%"/>
 
 deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空间测绘平台取socks5**代理，或**本地导入socks5**代理，轮询使用代理进行流量转发。
+> **开发不易,如果觉得该项目对您有帮助, 麻烦点个Star吧**
 
 ### 0x01 说明
 
@@ -116,7 +117,7 @@ resultSize='300' #最小为100,按100条/每页翻页，最大值需小于从官
 
 由于 fork 仓库无法无法修改仓库的可见性，也就是无法将仓库设置成私有形式。所以需要进行import.
 
-> **开发不易,如果觉得该项目对您有帮助, 麻烦点个Starb吧**
+> **开发不易,如果觉得该项目对您有帮助, 麻烦点个Star吧**
 
 ![alt text](./images/import1.png)
 
@@ -199,7 +200,7 @@ exit 0
 
 ![alt text](./images/right2.png)
 
-5. 修改 `config.tom` 配置文件
+5. 修改 `config.toml` 配置文件
 
 根据自己情况替换各种 key 就行了. 
 
