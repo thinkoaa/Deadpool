@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -10,9 +11,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 // 防止goroutine 异步处理问题
@@ -82,19 +84,19 @@ func RemoveDuplicates() {
 	SocksList = result
 }
 
-func CheckSocks(config map[string]interface{}) {
-	maxConcurrentReq, _ := strconv.Atoi(config["maxConcurrentReq"].(string))
-	timeout, _ = strconv.Atoi(config["timeout"].(string))
+func CheckSocks(checkSocks CheckSocksConfig) {
+	maxConcurrentReq := checkSocks.MaxConcurrentReq
+	timeout := checkSocks.Timeout
 	semaphore = make(chan struct{}, maxConcurrentReq)
 
-	checkRspKeywords := config["checkRspKeywords"].(string)
-	checkGeolocateConfig := config["checkGeolocate"].(map[string]interface{})
-	checkGeolocateSwitch := checkGeolocateConfig["switch"].(string)
+	checkRspKeywords := checkSocks.CheckRspKeywords
+	checkGeolocateConfig := checkSocks.CheckGeolocate
+	checkGeolocateSwitch := checkGeolocateConfig.Switch
 	isOpenGeolocateSwitch := false
-	reqUrl := config["checkURL"].(string)
+	reqUrl := checkSocks.CheckURL
 	if checkGeolocateSwitch == "open" {
 		isOpenGeolocateSwitch = true
-		reqUrl = checkGeolocateConfig["checkURL"].(string)
+		reqUrl = checkGeolocateConfig.CheckURL
 	}
 	fmt.Printf("并发:[ %v ],超时标准:[ %vs ]\n", maxConcurrentReq, timeout)
 	for index, proxyAddr := range SocksList {
@@ -148,15 +150,15 @@ func CheckSocks(config map[string]interface{}) {
 				}
 			} else {
 				//直接循环要排除的关键字，任一命中就返回
-				for _, keyword := range checkGeolocateConfig["excludeKeywords"].([]interface{}) {
-					if strings.Contains(stringBody, keyword.(string)) {
+				for _, keyword := range checkGeolocateConfig.ExcludeKeywords {
+					if strings.Contains(stringBody, keyword) {
 						// fmt.Println("忽略：" + proxyAddr + "包含：" + keyword.(string))
 						return
 					}
 				}
 				//直接循环要必须包含的关键字，任一未命中就返回
-				for _, keyword := range checkGeolocateConfig["includeKeywords"].([]interface{}) {
-					if !strings.Contains(stringBody, keyword.(string)) {
+				for _, keyword := range checkGeolocateConfig.IncludeKeywords {
+					if !strings.Contains(stringBody, keyword) {
 						// fmt.Println("忽略：" + proxyAddr + "未包含：" + keyword.(string))
 						return
 					}
@@ -188,32 +190,42 @@ func WriteLinesToFile() error {
 	return writer.Flush()
 }
 
-func TransmitReqFromClient(reqFromClient net.Conn) {
-	defer reqFromClient.Close()
-	tmpProxy := getNextProxy()
-	fmt.Println(time.Now().Format("2006-01-02 15:04:05") + "    " + tmpProxy)
-	if len(EffectiveList) == 0 {
-		fmt.Println("***已无可用代理，程序退出***")
-		os.Exit(1)
-	}
-	if len(EffectiveList) <= 1 {
-		fmt.Printf("***可用代理已仅剩%v个,%v，***\n", len(EffectiveList), EffectiveList)
+func DefineDial(ctx context.Context, network, address string) (net.Conn, error) {
+
+	return transmitReqFromClient(network, address)
+}
+
+func transmitReqFromClient(network string, address string) (net.Conn, error) {
+	tempProxy := getNextProxy()
+	fmt.Println(time.Now().Format("2006-01-02 15:04:05") + "\t" + tempProxy)
+	// 超时时间设置为 5 秒
+	timeout := time.Duration(Timeout) * time.Second
+
+	dialer := &net.Dialer{
+		Timeout: timeout,
 	}
 
-	conn, err := net.DialTimeout("tcp", tmpProxy, time.Duration(timeout)*time.Second)
+	dialect, _ := proxy.SOCKS5(network, tempProxy, nil, dialer)
+	conn, err := dialect.Dial(network, address)
 	if err != nil {
-		delInvalidProxy(tmpProxy) //从临时列表中删除该代理
-		TransmitReqFromClient(reqFromClient)
-		return
+		delInvalidProxy(tempProxy)
+		fmt.Printf("%s无效，自动切换下一个......\n", tempProxy)
+		return transmitReqFromClient(network, address)
 	}
-	defer conn.Close()
-	go io.Copy(conn, reqFromClient)
-	io.Copy(reqFromClient, conn)
+
+	return conn, nil
 }
 
 func getNextProxy() string {
 	mu.Lock()
 	defer mu.Unlock()
+	if len(EffectiveList) == 0 {
+		fmt.Println("***已无可用代理，程序退出***")
+		os.Exit(1)
+	}
+	if len(EffectiveList) <= 2 {
+		fmt.Printf("***可用代理已仅剩%v个,%v，***\n", len(EffectiveList), EffectiveList)
+	}
 	proxy := EffectiveList[proxyIndex]
 	proxyIndex = (proxyIndex + 1) % len(EffectiveList) // 循环访问
 	return proxy

@@ -3,42 +3,39 @@ package main
 import (
 	"Deadpool/utils"
 	"fmt"
-	"net"
+	"io"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/armon/go-socks5"
 )
 
 func main() {
+
 	utils.Banner()
 	fmt.Println("By:thinkoaa GitHub:https://github.com/thinkoaa/Deadpool\n\n")
 	//读取配置文件
-	var config map[string]interface{}
-	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
-		fmt.Println("读取config.toml失败,请检查配置,格式一定要正确", err)
-		os.Exit(1)
-	}
-	// 开启监听
-	listenerConfig := config["listener"].(map[string]interface{})
-	listener := listenerConfig["IP"].(string) + ":" + listenerConfig["PORT"].(string)
-	socketServer, err := net.Listen("tcp", listener)
+	config, err := utils.LoadConfig("config.toml")
 	if err != nil {
-		fmt.Printf("本地监听服务启动失败：%v\n", err)
+		fmt.Printf("读取config.toml失败,请检查配置,格式一定要正确%w\n", err)
 		os.Exit(1)
 	}
+
 	//从本地文件中取socks代理
 	fmt.Println("***直接使用fmt打印当前使用的代理,若高并发时,命令行打印可能会阻塞，不对打印做特殊处理，可忽略，不会影响实际的请求转发***\n")
 	utils.GetSocksFromFile(utils.LastDataFile)
 	//从fofa获取
 	utils.Wg.Add(1)
-	go utils.GetSocksFromFofa(config["FOFA"].(map[string]interface{}))
+	go utils.GetSocksFromFofa(config.FOFA)
 	//从hunter获取
 	utils.Wg.Add(1)
-	go utils.GetSocksFromHunter(config["HUNTER"].(map[string]interface{}))
+	go utils.GetSocksFromHunter(config.HUNTER)
 	//从quake中取
 	utils.Wg.Add(1)
-	go utils.GetSocksFromQuake(config["QUAKE"].(map[string]interface{}))
+	go utils.GetSocksFromQuake(config.QUAKE)
 	utils.Wg.Wait()
 	//等待所有 goroutine 完成
 	if len(utils.SocksList) == 0 {
@@ -52,7 +49,8 @@ func main() {
 
 	//开始检测代理存活性
 	startTime := time.Now()
-	utils.CheckSocks(config["checkSocks"].(map[string]interface{}))
+	utils.Timeout = config.CheckSocks.Timeout
+	utils.CheckSocks(config.CheckSocks)
 
 	sec := int(time.Since(startTime).Seconds())
 	if sec == 0 {
@@ -66,13 +64,25 @@ func main() {
 
 	utils.WriteLinesToFile() //存活代理写入硬盘，以备下次启动直接读取
 
-	fmt.Printf("======其他工具通过配置 socks5://%v 使用收集的代理，此处若提示0.0.0.0:xxxx，使用时需指定为具体地址======\n", listener)
-	for { //持续监听请求
-		reqFromClient, err := socketServer.Accept()
-		if err != nil {
-			fmt.Printf("本次客户端发起的请求出错：%v\n", err)
-			continue
-		}
-		go utils.TransmitReqFromClient(reqFromClient)
+	// 开启监听
+	conf := &socks5.Config{
+		Dial:   utils.DefineDial,
+		Logger: log.New(io.Discard, "", log.LstdFlags),
 	}
+	userName := strings.TrimSpace(config.Listener.UserName)
+	password := strings.TrimSpace(config.Listener.Password)
+	if userName != "" && password != "" {
+		cator := socks5.UserPassAuthenticator{Credentials: socks5.StaticCredentials{
+			userName: password,
+		}}
+		conf.AuthMethods = []socks5.Authenticator{cator}
+	}
+	server, _ := socks5.New(conf)
+	listener := config.Listener.IP + ":" + strconv.Itoa(config.Listener.Port)
+	fmt.Printf("======其他工具通过配置 socks5://%v 使用收集的代理,如有账号密码，记得配置======\n", listener)
+	if err := server.ListenAndServe("tcp", listener); err != nil {
+		fmt.Printf("本地监听服务启动失败：%v\n", err)
+		os.Exit(1)
+	}
+
 }

@@ -6,7 +6,7 @@ var (
 	SocksList     []string
 	EffectiveList []string
 	proxyIndex    int
-	timeout       int
+	Timeout       int
 	LastDataFile  = "lastData.txt"
 	Wg            sync.WaitGroup
 	mu            sync.Mutex
