@@ -12,16 +12,19 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/net/proxy"
 )
 
 // 防止goroutine 异步处理问题
+var addSocksMu sync.Mutex
+
 func addSocks(socks5 string) {
-	mu.Lock()
+	addSocksMu.Lock()
 	SocksList = append(SocksList, socks5)
-	mu.Unlock()
+	addSocksMu.Unlock()
 }
 func fetchContent(baseURL string, method string, timeout int, urlParams map[string]string, headers map[string]string, jsonBody string) (string, error) {
 	client := &http.Client{
@@ -71,20 +74,21 @@ func fetchContent(baseURL string, method string, timeout int, urlParams map[stri
 	return string(body), nil
 }
 
-func RemoveDuplicates() {
+func RemoveDuplicates(list *[]string) {
 	seen := make(map[string]struct{})
 	var result []string
-	for _, sock := range SocksList {
+	for _, sock := range *list {
 		if _, ok := seen[sock]; !ok {
 			result = append(result, sock)
 			seen[sock] = struct{}{}
 		}
 	}
 
-	SocksList = result
+	*list = result
 }
 
-func CheckSocks(checkSocks CheckSocksConfig) {
+func CheckSocks(checkSocks CheckSocksConfig, socksListParam []string) {
+	startTime := time.Now()
 	maxConcurrentReq := checkSocks.MaxConcurrentReq
 	timeout := checkSocks.Timeout
 	semaphore = make(chan struct{}, maxConcurrentReq)
@@ -98,15 +102,20 @@ func CheckSocks(checkSocks CheckSocksConfig) {
 		isOpenGeolocateSwitch = true
 		reqUrl = checkGeolocateConfig.CheckURL
 	}
-	fmt.Printf("并发:[ %v ],超时标准:[ %vs ]\n", maxConcurrentReq, timeout)
-	for index, proxyAddr := range SocksList {
+	fmt.Printf("时间:[ %v ] 并发:[ %v ],超时标准:[ %vs ]\n", time.Now().Format("2006-01-02 15:04:05"), maxConcurrentReq, timeout)
+	var num int
+	total := len(socksListParam)
+	var tmpEffectiveList []string
+	var tmpMu sync.Mutex
+	for _, proxyAddr := range socksListParam {
 
 		Wg.Add(1)
 		semaphore <- struct{}{}
 		go func(proxyAddr string) {
-			mu.Lock()
-			fmt.Printf("\r正检测第 [ %v/%v ] 个代理,异步处理中...                    ", index+1, len(SocksList))
-			mu.Unlock()
+			tmpMu.Lock()
+			num++
+			fmt.Printf("\r正检测第 [ %v/%v ] 个代理,异步处理中...                    ", num, total)
+			tmpMu.Unlock()
 			defer Wg.Done()
 			defer func() {
 				<-semaphore
@@ -165,12 +174,22 @@ func CheckSocks(checkSocks CheckSocksConfig) {
 				}
 
 			}
-			mu.Lock() // 锁
-			EffectiveList = append(EffectiveList, proxyAddr)
-			mu.Unlock() // 解锁
+			tmpMu.Lock()
+			tmpEffectiveList = append(tmpEffectiveList, proxyAddr)
+			tmpMu.Unlock()
 		}(proxyAddr)
 	}
 	Wg.Wait()
+	mu.Lock()
+	EffectiveList = make([]string, len(tmpEffectiveList))
+	copy(EffectiveList, tmpEffectiveList)
+	proxyIndex = 0
+	mu.Unlock()
+	sec := int(time.Since(startTime).Seconds())
+	if sec == 0 {
+		sec = 1
+	}
+	fmt.Printf("\n根据配置规则检测完成,用时 [ %vs ] ,共发现 [ %v ] 个可用\n", sec, len(tmpEffectiveList))
 }
 
 func WriteLinesToFile() error {
@@ -220,8 +239,7 @@ func getNextProxy() string {
 	mu.Lock()
 	defer mu.Unlock()
 	if len(EffectiveList) == 0 {
-		fmt.Println("***已无可用代理，程序退出***")
-		os.Exit(1)
+		fmt.Println("***已无可用代理，请重新运行程序***")
 	}
 	if len(EffectiveList) <= 2 {
 		fmt.Printf("***可用代理已仅剩%v个,%v，***\n", len(EffectiveList), EffectiveList)
@@ -247,4 +265,20 @@ func delInvalidProxy(proxy string) {
 		proxyIndex = 0
 	}
 	mu.Unlock()
+}
+
+func GetSocks(config Config) {
+	GetSocksFromFile(LastDataFile)
+	//从fofa获取
+	Wg.Add(1)
+	go GetSocksFromFofa(config.FOFA)
+	//从hunter获取
+	Wg.Add(1)
+	go GetSocksFromHunter(config.HUNTER)
+	//从quake中取
+	Wg.Add(1)
+	go GetSocksFromQuake(config.QUAKE)
+	Wg.Wait()
+	//根据IP:PORT去重，此步骤会存在同IP不同端口的情况，这种情况不再单独过滤，这种情况，最终的出口IP可能不一样
+	RemoveDuplicates(&SocksList)
 }

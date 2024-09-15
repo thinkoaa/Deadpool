@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Listener   ListenerConfig   `toml:"listener"`
+	Task       TaskConfig       `toml:"task"`
 	CheckSocks CheckSocksConfig `toml:"checkSocks"`
 	FOFA       FOFAConfig       `toml:"FOFA"`
 	QUAKE      QUAKEConfig      `toml:"QUAKE"`
@@ -19,6 +20,11 @@ type ListenerConfig struct {
 	Port     int    `toml:"PORT"`
 	UserName string `toml:"userName"`
 	Password string `toml:"password"`
+}
+
+type TaskConfig struct {
+	PeriodicChecking string `toml:"periodicChecking"`
+	PeriodicGetSocks string `toml:"periodicGetSocks"`
 }
 
 type CheckSocksConfig struct {

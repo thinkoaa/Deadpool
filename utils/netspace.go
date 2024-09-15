@@ -19,7 +19,7 @@ func GetSocksFromQuake(quake QUAKEConfig) {
 		return
 	}
 	fmt.Printf("***已开启quake,将根据配置条件从quake中获取%d条数据，然后进行有效性检测***\n", quake.ResultSize)
-	jsonCondition := "{\"query\": \"" + strings.Replace(quake.QueryString, `"`, `\"`, -1) + "\",\"start\": 0,\"size\": " + strconv.Itoa(quake.ResultSize) + ",\"include\":[\"ip\",\"port\"]}"
+	jsonCondition := "{\"query\": \"" + strings.Replace(quake.QueryString, `"`, `\"`, -1) + "\",\"latest\":\"True\",\"start\": 0,\"size\": " + strconv.Itoa(quake.ResultSize) + ",\"include\":[\"ip\",\"port\"]}"
 	headers := map[string]string{
 		"X-QuakeToken": quake.Key,
 		"Content-Type": "application/json"}
@@ -151,7 +151,9 @@ func GetSocksFromFile(socksFileName string) {
 
 		for scanner.Scan() {
 			line := scanner.Text()
-			SocksList = append(SocksList, strings.TrimSpace(line))
+			if strings.TrimSpace(line) != "" {
+				SocksList = append(SocksList, line)
+			}
 		}
 		// 检查扫描过程中是否发生了错误
 		if err := scanner.Err(); err != nil {
