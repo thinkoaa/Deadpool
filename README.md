@@ -121,7 +121,7 @@ resultSize='300' #最小为100,按100条/每页翻页，最大值需小于从官
 
 ### 0x05 GitHub Action 自动化搜集代理工具
 
-针对于个人使用场景，如果需要该脚本在GitHub自动获取并更新 lastData.txt, 可以按照一下流程进行设置：
+针对于个人使用场景，如果需要该脚本在GitHub自动获取并更新 lastData.txt, 可以按照以下流程进行设置：
 
 1. import repository
 
