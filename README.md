@@ -1,6 +1,6 @@
 <img src="images/deadpool.png" style="zoom:30%;transform: scale(0.3);" width="35%" height="35%"/>
 
-deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空间测绘平台取socks5**代理，或**本地导入socks5**代理，轮询使用代理进行流量转发。
+deadpool代理池工具，可从**hunter**、**quake**、**fofa**等**网络空间测绘平台取高质量socks5**代理，或**本地导入socks5**代理，轮询使用代理进行流量转发。
 > **开发不易,如果觉得该项目对您有帮助, 麻烦点个Star吧**
 
 **2024-09-15改动：增加周期性任务：根据配置信息，定时检测存活、定时从网络空间取代理**
